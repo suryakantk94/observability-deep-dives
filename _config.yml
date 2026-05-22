@@ -1,0 +1,4 @@
+title: Observability Deep Dives
+description: Notes on Prometheus, PromQL, and metrics-system internals.
+theme: jekyll-theme-cayman
+show_downloads: false
