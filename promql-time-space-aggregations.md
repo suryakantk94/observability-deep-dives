@@ -1,5 +1,8 @@
 # PromQL time and space aggregations — a visual intuition
 
+<!-- nav:top -->
+[← All posts](./)
+
 The intuition that "time" and "space" mean two different collapse directions in PromQL.
 
 ## Setup
@@ -122,3 +125,15 @@ The `by (le)` is what makes the histogram math valid — you must keep `le` to f
 ---
 
 **One-line summary:** time aggregation collapses samples *within* a series (across timestamps); space aggregation collapses *across* series (at one timestamp). The canonical PromQL pattern `sum(rate(...))` does both because each half does what the other can't.
+
+<!-- nav:bottom -->
+
+---
+
+## More posts
+
+- [**Pre-aggregating metrics at ingest with rule-based shaping**](rule-based-metric-shaping.md)
+- [**Prometheus metric types**](prometheus-metric-types.md)
+- [**Quantiles, p99, and native histograms**](quantiles-and-native-histograms.md)
+- [**Cardinality control patterns**](cardinality-control-patterns.md)
+
