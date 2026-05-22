@@ -1,5 +1,8 @@
 # Cardinality control in production metrics systems
 
+<!-- nav:top -->
+[← All posts](./)
+
 Why metric cardinality kills you, and the design patterns metrics systems use to reduce it without losing the metric.
 
 ## What is cardinality?
@@ -153,3 +156,15 @@ Robust cardinality-control UX needs to **scan dashboards and alerts at rule-crea
 | Keep-original window | Migration safety | n/a | Low |
 
 The combination that actually works in production: **aggregate-then-drop at ingest + retention tiering + rollup tables + query rewriting + keep-original migration window**. Each piece on its own is partial; together they cover the cardinality story end-to-end.
+
+<!-- nav:bottom -->
+
+---
+
+## More posts
+
+- [**Pre-aggregating metrics at ingest with rule-based shaping**](rule-based-metric-shaping.md)
+- [**Prometheus metric types**](prometheus-metric-types.md)
+- [**PromQL time vs space aggregations**](promql-time-space-aggregations.md)
+- [**Quantiles, p99, and native histograms**](quantiles-and-native-histograms.md)
+
