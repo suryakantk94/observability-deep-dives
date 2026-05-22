@@ -1,5 +1,8 @@
 # Quantiles, p99, and native histograms
 
+<!-- nav:top -->
+[← All posts](./)
+
 What a quantile actually is, why p99 is the number you care about, and how native histograms upgrade the classic histogram model.
 
 ## What's a quantile?
@@ -153,3 +156,15 @@ Prometheus's native histogram is essentially the DDSketch idea folded into Prome
 ---
 
 **One-line summary:** a quantile is the value at a sorted-data cut point; p99 is the 99th-percentile cut point and the canonical tail-latency metric; native histograms encode a whole histogram in one series using exponential buckets, fixing classic histograms' cardinality and bucket-choice problems at the cost of newer tooling support.
+
+<!-- nav:bottom -->
+
+---
+
+## More posts
+
+- [**Pre-aggregating metrics at ingest with rule-based shaping**](rule-based-metric-shaping.md)
+- [**Prometheus metric types**](prometheus-metric-types.md)
+- [**PromQL time vs space aggregations**](promql-time-space-aggregations.md)
+- [**Cardinality control patterns**](cardinality-control-patterns.md)
+
