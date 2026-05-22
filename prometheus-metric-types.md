@@ -1,5 +1,8 @@
 # The four Prometheus metric types
 
+<!-- nav:top -->
+[← All posts](./)
+
 The four classic metric types in Prometheus, with concrete wire-format examples and notes on when to use each.
 
 ## 1 · Counter
@@ -160,3 +163,15 @@ Does the value only go up?
         │   └── Want auto-scaled, low-cardinality? → Native
         └── no → Summary (or just use a Histogram anyway)
 ```
+
+<!-- nav:bottom -->
+
+---
+
+## More posts
+
+- [**Pre-aggregating metrics at ingest with rule-based shaping**](rule-based-metric-shaping.md)
+- [**PromQL time vs space aggregations**](promql-time-space-aggregations.md)
+- [**Quantiles, p99, and native histograms**](quantiles-and-native-histograms.md)
+- [**Cardinality control patterns**](cardinality-control-patterns.md)
+
