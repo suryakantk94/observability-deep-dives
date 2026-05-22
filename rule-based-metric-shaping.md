@@ -1,5 +1,8 @@
 # Pre-aggregating metrics at ingest with rule-based shaping
 
+<!-- nav:top -->
+[← All posts](./)
+
 > A pattern for taming high-cardinality metrics without dropping data: divert the
 > raw series to a separate storage path, pre-aggregate them with recording
 > rules, and serve queries from the aggregated view by default.
@@ -286,3 +289,15 @@ The histogram support (classic vs native, `le` preservation, `BY`-only on percen
 ---
 
 *If you'd like to chat about any of this, the [observability-deep-dives](https://github.com/suryakantk94/observability-deep-dives) repo is the place. I'm always interested in how other teams have solved variations of this problem.*
+
+<!-- nav:bottom -->
+
+---
+
+## More posts
+
+- [**Prometheus metric types**](prometheus-metric-types.md)
+- [**PromQL time vs space aggregations**](promql-time-space-aggregations.md)
+- [**Quantiles, p99, and native histograms**](quantiles-and-native-histograms.md)
+- [**Cardinality control patterns**](cardinality-control-patterns.md)
+
