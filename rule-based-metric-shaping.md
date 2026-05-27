@@ -87,6 +87,8 @@ Two things to notice:
 
 The keep_original flag is the policy switch. `keep_original=true` says "leave the raw metric in the main table AND also synthesise an aggregation." `keep_original=false` says "the raw metric is too expensive — only the aggregation should be visible to default queries." Same machinery, different verdict on whether the raw still has a seat at the table.
 
+> An aside on product surface area: both modes are useful design points, but a UI that exposes both as user-facing radio buttons creates a footgun — picking `keep_original=true` looks safer but quietly doubles your storage and undoes the whole point of shaping for high-cardinality metrics. Shipping the destructive mode (`keep_original=false`) as the only user-visible option, with the additive mode available only as a configdb override for power users, is a reasonable first-version stance. Anything driven primarily by storage cost should default to "do the thing the user came here to do" rather than "leave both copies around just in case."
+
 ---
 
 ## The shaping rule shape
@@ -127,9 +129,25 @@ histogram_quantile(0.95, sum by(le, service) (rate(request_duration_bucket[5m]))
 
 A few choices worth calling out:
 
-- **`le` is preserved in the inner aggregation.** Classic histograms encode bucket boundaries in the `le` label. Drop it from the inner sum and `histogram_quantile` has nothing to operate on. The synthesiser prepends `le` to the `BY` list automatically.
-- **Percentile aggregations require `BY`, not `WITHOUT`.** `WITHOUT` on a bucket series is too easy to misuse (it can silently drop `le`). The rule is rejected upfront rather than emit broken PromQL.
+- **`le` is always preserved on classic histograms — under both `BY` and `WITHOUT`.** Classic histograms encode bucket boundaries in the `le` label. Drop it from the inner sum and `histogram_quantile` has nothing to operate on. The synthesiser is paranoid about this in two complementary ways: in `BY` mode it prepends `le` to the keep list; in `WITHOUT` mode it silently filters `le` out of the drop list so the user can't accidentally drop it. Either way the inner aggregation keeps `le`.
 - **The rate window scales with the evaluation interval.** A rule that evaluates every hour shouldn't use a 5-minute window — one bucket is too few. The synthesiser uses `max(5m, 4 × interval)` so a 1h rule gets `[4h]` automatically.
+
+### The validation matrix
+
+The rule synthesiser doesn't accept every combination of source type × aggregation × label operation. Some are rejected outright, some are rewritten to a safe form, and some pass through unchanged. The full matrix:
+
+| Source type | Aggregation | `BY` | `WITHOUT` | What the synthesiser does |
+|---|---|---|---|---|
+| Counter | `SUM` | ✅ | ✅ | `sum by/without (…) (metric{})`. Output is still a cumulative counter per kept-label combo. |
+| Counter | `AVG` / `MIN` / `MAX` / `COUNT` | ✅ | ✅ | Standard PromQL aggregation. Output is a gauge — the cumulative-counter shape is lost (averaging cumulatives doesn't produce a cumulative). |
+| Gauge | `SUM` / `AVG` / `MIN` / `MAX` / `COUNT` | ✅ | ✅ | Standard PromQL aggregation. Output is a gauge. |
+| Classic histogram (`_bucket`) | `SUM` | ✅ — `le` auto-prepended | ❌ rejected | Only `SUM` preserves histogram shape across instances. `BY` is required so `le` survives; `WITHOUT` is too easy to misuse (could silently drop `le` even with the filter — see note below) so it's blocked at validation time. |
+| Classic histogram | `P50` / `P90` / `P95` / `P99` | ✅ — `le` auto-prepended | ✅ — `le` filtered out of drop list | Expands into `histogram_quantile(q, sum by/without (…le…) (rate(metric{}[window])))`. The synthesiser ensures `le` is in the inner sum regardless of which operation the user picked. |
+| Classic histogram | `AVG` / `MIN` / `MAX` / `COUNT` | ❌ | ❌ | These don't preserve histogram-counter semantics. Rejected. |
+| Native histogram | `SUM` / `AVG` / `MIN` / `MAX` / `COUNT` | ❌ | ❌ | Native histograms encode bucket data inside the sample, not as `le` labels. PromQL aggregations on a native histogram are well-defined but produce a *summed* native histogram — useful but not what shaping rules are for. Rejected. |
+| Native histogram | `P50` / `P90` / `P95` / `P99` | ✅ | ✅ | Expands into `histogram_quantile(q, sum by/without (…) (rate(metric{}[window])))`. No `le` to protect — the bucket data rides inside the sample, so the user's grouping is left untouched. |
+
+The asymmetry between `SUM` and percentile aggregations on classic histograms is worth lingering on. For `SUM` the synthesiser rejects `WITHOUT` because the recorded counter has to remain a usable histogram for downstream `histogram_quantile()` — `BY(le, …)` is the only way to be confident the output is still bucket-shaped. For percentile aggregations the `histogram_quantile()` happens *inside* the rule, so the synthesiser only needs to guarantee `le` is in the inner sum — which it can do equally well with `BY` (prepend) or `WITHOUT` (filter out of drop list). The user gets more flexibility on percentile rules without losing the safety property.
 
 ---
 
@@ -269,6 +287,7 @@ Worth being explicit about the boundaries:
 - **It's not a substitute for dropping labels.** If a label has truly unbounded cardinality (raw request IDs, user IDs), the right move is still to drop it at scrape time. Shaping is for metrics that are *useful* high-cardinality — where the raw values matter for forensics but the aggregations are what the operator wants on dashboards.
 - **It's not free.** You're paying for an extra Kafka topic, an extra storage table, a rule manager goroutine, and the synthesis pipeline. The savings only kick in when the cardinality of the source metric is large enough that the aggregation reduces the working set by an order of magnitude or more.
 - **It's not a query-time tool.** The aggregations are computed at evaluation time, on a fixed cadence, and stored as new series. Ad-hoc queries that need exotic groupings still hit the raw table — that's why diverting (rather than dropping) the raw matters.
+- **It's not symmetric across histogram flavours.** Classic histograms (a counter per `le` bucket) and native histograms (bucket data inside the sample) need different machinery. Classic supports `SUM` (preserves bucket shape, with `le` auto-protected) and percentile aggregations. Native rejects `SUM`/`AVG`/`MIN`/`MAX` outright — there's no `le` to fold over, and the aggregation modes that *are* well-defined on natives don't fit the shaping use case — and only supports percentile aggregations via `histogram_quantile`. The matrix above spells out exactly which combinations the synthesiser accepts.
 
 The mental model is: **shape the hot path, keep the cold path queryable**. Default dashboards and alerts hit the aggregations. Incident drill-downs can still get to the raw data when they need to.
 
